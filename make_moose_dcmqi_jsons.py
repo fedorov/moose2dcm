@@ -1,17 +1,13 @@
-import pydcmqi
 import json
 import pandas as pd
+import sys
 
-# Load the CSV file into a DataFrame
-df = pd.read_csv('MOOSE SNOMED mapping - MOOSE SNOMED MAPPING.tsv',sep="\t")  
-
-# Display the first few rows of the DataFrame
-print(df.head())
+df = pd.read_csv(sys.argv[1],sep="\t")  
 
 for model in df['Model'].unique():
 
   dcmqi_seg_dict = {
-    "ContentCreatorName": "MOSE",
+    "ContentCreatorName": "MOOSE",
     "ClinicalTrialSeriesID": "Session1",
     "ClinicalTrialTimePointID": "1",
     "ClinicalTrialCoordinatingCenterName": "MOOSE",
@@ -42,7 +38,6 @@ for model in df['Model'].unique():
         "CodingSchemeDesignator": row['SegmentedPropertyTypeCodeSequence.CodingSchemeDesignator'],
         "CodeMeaning": row['SegmentedPropertyTypeCodeSequence.CodeMeaning'],
       },
-      "TrackingIdentifier": row['label_name'],
       "recommendedDisplayRGBValue": [
             221,
             130,
