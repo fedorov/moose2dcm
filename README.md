@@ -58,9 +58,13 @@ and
 3. run `python make_moose_dcmqi_jsons.py` to create JSON files that will be used in the following step.
 4. run `convert_moose_segmentations.py <path to the root folder with the MOOSE results as above>` 
 
-WARNING: this is WIP and conversion of measurements is not yet ready.
-
 MOOSE SNOOMED mapping source is in https://docs.google.com/spreadsheets/d/1Yi_HL8UTNDqRZ4kdZ9XEAVRiG2ijbNK0kL8HvCUe9kI/edit?gid=657933107#gid=657933107.
+
+# TODO
+
+* complete measurement conversion
+* discuss some of the metadata attributes assignment
+* assign colors to the segments (can reuse at least some from TotalSegmentator)
 
 # Support
 
