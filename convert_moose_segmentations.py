@@ -94,6 +94,10 @@ def convert_moose_segmentations(results_directory, force_overwrite=False):
                     seg_ds = pydicom.dcmread(dcm_seg_filename, stop_before_pixels=False)
 
                     these_measurements = dcmqi_measurements_json.copy()
+                    # populate image library with the list of files in the ct_folder_path
+                    these_measurements["imageLibrary"] = [f for f in os.listdir(ct_folder_path)]
+                    these_measurements["compositeContext"] = [f for f in os.listdir(ct_folder_path)]
+
                     # iterate over items in SegmentSequence
                     for item in seg_ds.SegmentSequence:
                         segment_measurements = df[df["Regions-Present"] == item.SegmentLabel]
@@ -124,6 +128,12 @@ def convert_moose_segmentations(results_directory, force_overwrite=False):
                                 "value": measurement_str,
                                 "quantity":
                                     {
+                                        "CodeValue": "YEKZ",
+                                        "CodingSchemeDesignator": "IBSI",
+                                        "CodeMeaning": "Volume from Voxel Summation"
+                                    },
+                                "units":
+                                    {
                                         "CodeValue": "mm3",
                                         "CodingSchemeDesignator": "UCUM",
                                         "CodeMeaning": "cubic millimeter"
@@ -147,8 +157,6 @@ def convert_moose_segmentations(results_directory, force_overwrite=False):
                         print(f"Measurements SR file created: {measurements_sr_file}")
                     else:
                         print(f"Measurements SR file not created: {measurements_sr_file}")
-                        exit(1)
-                    exit(1)
 
 # in the __main__ function, parse the parameter which is the directory name
 # and call convert_moose_segmentations function with the directory name as the argument
@@ -178,8 +186,11 @@ if __name__ == "__main__":
     # Add positional arguments for the directory name
     parser.add_argument("directory", type=str, help="Name of the input directory.")
 
+    # Add boolean argument for force overwrite
+    parser.add_argument("--force-overwrite", action="store_true", help="Force overwrite of existing files.")
+
     # Parse the command-line arguments
     args = parser.parse_args()
 
     # Call the convert_moose_segmentations function with the directory name as the argument
-    convert_moose_segmentations(args.directory)
+    convert_moose_segmentations(args.directory, args.force_overwrite)
