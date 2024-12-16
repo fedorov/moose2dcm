@@ -62,7 +62,7 @@ MOOSE SNOOMED mapping source is in https://docs.google.com/spreadsheets/d/1Yi_HL
 
 # TODO
 
-* complete measurement conversion
+* complete measurement conversion - done
 * discuss some of the metadata attributes assignment
 * assign colors to the segments (can reuse at least some from TotalSegmentator)
 
