@@ -5,6 +5,7 @@ import os
 import re
 import pandas
 import pydicom
+import json
 
 dcmqi_measurements_json = {
   "SeriesDescription": "MOOSE segmentations measurements",
@@ -73,18 +74,17 @@ def convert_moose_segmentations(results_directory, force_overwrite=False):
                     else:
                         print(f"DCM segmentation file not created: {dcm_seg_filename}")
 
-                continue
-
                 # Measurements WIP
 
                 # check if measurements exist
-                measurements_dir = os.path.join(path_components[:-1], "stats")
+                measurements_dir = os.path.join(os.path.sep.join(path_components[:-1]), "stats")
                 measurements_file = os.path.join(measurements_dir, f"clin_CT_{model_name}_CT_{ct_series_instance_uid}_ct_volume.csv")
 
                 if not os.path.exists(measurements_file):
                     continue                    
                 
                 print(f"Measurements file exists: {os.path.join(measurements_dir, measurements_file)}")
+                measurements_json_file = os.path.join(measurements_dir, f"{model_name}_volume.json")
                 measurements_sr_file = os.path.join(measurements_dir, f"{model_name}_volume_sr.dcm")
                 if os.path.exists(measurements_sr_file) and not force_overwrite:
                     print(f"Measurements SR file already exists: {measurements_sr_file}")
@@ -93,32 +93,62 @@ def convert_moose_segmentations(results_directory, force_overwrite=False):
                     df = pandas.read_csv(measurements_file, sep=",")
                     seg_ds = pydicom.dcmread(dcm_seg_filename, stop_before_pixels=False)
 
-                                        # iterate over items in SegmentSequence
+                    these_measurements = dcmqi_measurements_json.copy()
+                    # iterate over items in SegmentSequence
                     for item in seg_ds.SegmentSequence:
                         segment_measurements = df[df["Regions-Present"] == item.SegmentLabel]
                         if segment_measurements.empty:
                             continue
-                        these_measurements = dcmqi_measurements_json.deepcopy()
+                        measurements = {}
                         # TODO: populate these from segmentation category sequence
-                        these_measurements["Finding"] = {
+                        measurements["Finding"] = {
                             "CodeValue": "123037004",
                             "CodingSchemeDesignator": "SCT",
                             "CodeMeaning": "Anatomical structure"
                         }
-                        these_measurements["Finding site"] = {
-                            "CodeValue": item.SegmentationTypeCodeSequence[0].CodeValue,
-                            "CodingSchemeDesignator": item.segmentationTypeCodeSequence[0].CodingSchemeDesignator,
-                            "CodeMeaning": item.segmentationTypeCodeSequence[0].CodeMeaning
+                        measurements["FindingSite"] = {
+                            "CodeValue": item.SegmentedPropertyTypeCodeSequence[0].CodeValue,
+                            "CodingSchemeDesignator": item.SegmentedPropertyTypeCodeSequence[0].CodingSchemeDesignator,
+                            "CodeMeaning": item.SegmentedPropertyTypeCodeSequence[0].CodeMeaning
                         }
+                        measurements["SourceSeriesForImageSegmentation"] = ct_series_instance_uid
+                        measurements["segmentationSOPInstanceUID"] = seg_ds.SOPInstanceUID
+                        measurements["ReferencedSegment"] = item.SegmentNumber
+                        measurements["TrackingIdentifier"] = item.SegmentLabel
                         # TODO: handle modifier code sequence
-                        measurement_item = {}
-                        print(item.SegmentLabel)
+                        # format floating point number pnt to 2 decimal places
+                        measurement_str = str("{:.2f}".format(segment_measurements['Volume(mm3)'].values[0]))
 
+                        measurements['measurementItems'] = [
+                            {                                                          
+                                "value": measurement_str,
+                                "quantity":
+                                    {
+                                        "CodeValue": "mm3",
+                                        "CodingSchemeDesignator": "UCUM",
+                                        "CodeMeaning": "cubic millimeter"
+                                    },
+                            }
+                        ]                    
                     
+                    these_measurements["Measurements"].append(measurements)
 
-                    print(f"Measurements for SegmentNumber {item.SegmentNumber} ({item.SegmentLabel}):")
-                    print(segment_measurements['Volume(mm3)'].values[0])
+                    # save measurements to json file
+                    with open(measurements_json_file, 'w') as outfile:
+                        json.dump(these_measurements, outfile, indent=2)
+                    # run the tid1500writer
+                    cmd = f"tid1500writer --outputDICOM {measurements_sr_file} --inputMetadata {measurements_json_file} --inputImageLibraryDirectory {ct_folder_path} --inputCompositeContextDirectory {ct_folder_path}"
 
+                    # execute the conversion command
+                    print(f"Executing command: {cmd}")
+                    os.system(cmd)
+                    # confirm that the output SR file exists
+                    if os.path.exists(measurements_sr_file):
+                        print(f"Measurements SR file created: {measurements_sr_file}")
+                    else:
+                        print(f"Measurements SR file not created: {measurements_sr_file}")
+                        exit(1)
+                    exit(1)
 
 # in the __main__ function, parse the parameter which is the directory name
 # and call convert_moose_segmentations function with the directory name as the argument
@@ -132,6 +162,14 @@ if __name__ == "__main__":
         subprocess.run(["itkimage2segimage", "--help"], check=True)
     except FileNotFoundError:
         print("itkimage2segimage executable not found in system path.")
+        exit(1)
+
+    # confirm that tid1500writer executable is in the system path
+    import subprocess
+    try:
+        subprocess.run(["tid1500writer", "--help"], check=True)
+    except FileNotFoundError:
+        print("tid1500writer executable not found in system path.")
         exit(1)
 
     # Create the argument parser
