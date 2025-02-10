@@ -49,14 +49,15 @@ def convert_moose_segmentations(results_directory, force_overwrite=False):
                 else:
                     print(f"CT folder path does not exist or is empty: {ct_folder_path}")
 
-                dcmq_model_json = os.path.join(f"{model_name}-dcmqi_seg_dict.json")                                    
+                dcmq_model_json = os.path.join(f"moose-{model_name}-dcmqi_seg_dict.json")                                    
                 # confirm that the dcmqi model json file exists
                 if os.path.exists(dcmq_model_json):
                     print(f"dcmqi model json file exists: {dcmq_model_json}")
                 else:
                     print(f"dcmqi model json file does not exist: {dcmq_model_json}")
 
-                dcm_seg_filename = os.path.join(root, f"{model_name}_segmentation.dcm")
+                #dcm_seg_filename = os.path.join(root, f"{model_name}_segmentation.dcm")
+                dcm_seg_filename = os.path.join(f"./moose/{ct_series_instance_uid}_{model_name}_SEG.dcm")
                 if os.path.exists(dcm_seg_filename) and not force_overwrite:
                     print(f"DCM segmentation file already exists: {dcm_seg_filename}")
                 else:
@@ -75,7 +76,7 @@ def convert_moose_segmentations(results_directory, force_overwrite=False):
                         print(f"DCM segmentation file not created: {dcm_seg_filename}")
 
                 # Measurements WIP
-
+                continue
                 # check if measurements exist
                 measurements_dir = os.path.join(os.path.sep.join(path_components[:-1]), "stats")
                 measurements_file = os.path.join(measurements_dir, f"clin_CT_{model_name}_CT_{ct_series_instance_uid}_ct_volume.csv")
