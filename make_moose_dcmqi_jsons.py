@@ -1,17 +1,27 @@
 import json
 import pandas as pd
+import re
 import sys
 
-df = pd.read_csv(sys.argv[1],sep="\t")  
+df = pd.read_csv(sys.argv[1])  
 
-for model in df['Model'].unique():
+print(df.columns)
+
+algorithm = sys.argv[2]
+
+try:
+  models = df['Model'].unique()
+except KeyError:
+  models = ['UNKNOWN']
+
+for model in models:
 
   dcmqi_seg_dict = {
-    "ContentCreatorName": "MOOSE",
+    "ContentCreatorName": algorithm,
     "ClinicalTrialSeriesID": "Session1",
     "ClinicalTrialTimePointID": "1",
-    "ClinicalTrialCoordinatingCenterName": "MOOSE",
-    "SeriesDescription": f"MOOSE segmentation - {model}",
+    "ClinicalTrialCoordinatingCenterName": algorithm,
+    "SeriesDescription": f"{algorithm} segmentation - {model}",
     "SeriesNumber": "300",
     "InstanceNumber": "1",
     "segmentAttributes": []}
@@ -20,14 +30,20 @@ for model in df['Model'].unique():
 
   # iterate over rows in df
   for index, row in df.iterrows():
-    if row["Model"] != model:
-      continue
+    if model != 'UNKNOWN':
+      if row["Model"] != model:
+        continue
+
+    try:
+      rgb=[int(num) for num in re.findall(r'\d+', row['recommendedDisplayRGBValue'])]
+    except TypeError:
+      print("Failed to parse RGB value for row: ", row)
 
     segment_attributes = {
       "labelID": row['label_id'],
       "SegmentDescription": row['label_name'],
       "SegmentAlgorithmType": 'AUTOMATIC',
-      "SegmentAlgorithmName": 'MOOSE',
+      "SegmentAlgorithmName": algorithm,
       "SegmentedPropertyCategoryCodeSequence": {
         "CodeValue": str(int(row['SegmentedPropertyCategoryCodeSequence.CodeValue'])),
         "CodingSchemeDesignator": row['SegmentedPropertyCategoryCodeSequence.CodingSchemeDesignator'],
@@ -39,9 +55,9 @@ for model in df['Model'].unique():
         "CodeMeaning": row['SegmentedPropertyTypeCodeSequence.CodeMeaning'],
       },
       "recommendedDisplayRGBValue": [
-            221,
-            130,
-            101
+            rgb[0],
+            rgb[1],
+            rgb[2]
           ],
     }
 
@@ -55,5 +71,5 @@ for model in df['Model'].unique():
     dcmqi_seg_dict["segmentAttributes"][0].append(segment_attributes)
     
   # save dcmqi_seg_dict to json file
-  with open(f'{model}-dcmqi_seg_dict.json', 'w') as outfile:
+  with open(f'{algorithm}-{model}-dcmqi_seg_dict.json', 'w') as outfile:
     json.dump(dcmqi_seg_dict, outfile, indent=2)
